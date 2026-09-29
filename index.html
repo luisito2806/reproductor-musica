@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoundCloud Darkroom Player</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- Barra Superior -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <div class="brand">
+        <svg class="waveform-icon" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+          <path d="M12 3v18M8 6v12M4 9v6M16 6v12M20 9v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">SOUNDCLOUD</span>
+      </div>
+
+      <!-- Navegación entre Vistas -->
+      <nav class="nav-tabs">
+        <button type="button" id="nav-inicio" class="nav-tab active">Inicio</button>
+        <button type="button" id="nav-megusta" class="nav-tab">Mis Me Gusta (<span id="fav-count">0</span>)</button>
+      </nav>
+    </div>
+
+    <!-- Opciones de Usuario / BD -->
+    <div class="nav-right">
+      <div id="user-info-bar" class="user-profile oculto">
+        <span class="user-badge" id="lbl-username">@usuario</span>
+        <button type="button" id="btn-cambiar-cuenta" class="btn-ghost-sm">Cambiar cuenta</button>
+        <button type="button" id="btn-logout" class="btn-ghost-sm danger">Cerrar sesión</button>
+      </div>
+      <button type="button" id="btn-abrir-login" class="btn-primary">Iniciar sesión / Registro</button>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="main-container">
+    
+    <!-- Hero / Canción en Reproducción -->
+    <section class="hero-player">
+      <div class="hero-cover-box">
+        <img id="track-cover" src="./covers/perfumito-nuevo.jpg" alt="Portada" class="hero-cover-img" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80'">
+      </div>
+      <div class="hero-details">
+        <span class="tag-status">REPRODUCIENDO AHORA</span>
+        <h1 id="track-title" class="track-title">PERFuMITO NUEVO</h1>
+        <h2 id="track-artist" class="track-artist">Bad Bunny ft. RaiNao</h2>
+        
+        <div class="hero-actions">
+          <button type="button" id="btn-fav" class="btn-fav">🤍 Me gusta</button>
+          <span id="fav-feedback" class="feedback-msg"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lista de Canciones -->
+    <section class="catalog-section">
+      <div class="catalog-header">
+        <h3 id="catalog-title" class="catalog-heading">Todas las canciones</h3>
+        <span id="catalog-subtitle" class="catalog-sub">6 temas listos para reproducir</span>
+      </div>
+
+      <div id="track-list" class="track-list">
+        <!-- Generado dinámicamente -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Barra de Reproducción Inferior Fija -->
+  <footer class="bottom-bar">
+    <audio id="audio-engine" preload="metadata"></audio>
+
+    <!-- Scrubber de progreso con mouse y táctil -->
+    <div class="scrubber-container">
+      <span id="lbl-current-time" class="time-txt">00:00</span>
+      <input type="range" id="progress-bar" class="scrubber" value="0" min="0" max="100" step="0.1">
+      <span id="lbl-duration" class="time-txt">00:00</span>
+    </div>
+
+    <div class="bottom-controls">
+      <!-- Miniatura izquierda -->
+      <div class="now-playing-mini">
+        <img id="mini-cover" src="./covers/perfumito-nuevo.jpg" alt="Mini" onerror="this.src='https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&q=80'">
+        <div class="mini-meta">
+          <span id="mini-title" class="mini-title">PERFuMITO NUEVO</span>
+          <span id="mini-artist" class="mini-artist">Bad Bunny ft. RaiNao</span>
+        </div>
+      </div>
+
+      <!-- Botones centrales -->
+      <div class="playback-buttons">
+        <button type="button" id="btn-shuffle" class="ctrl-btn" title="Aleatorio">🔀</button>
+        <button type="button" id="btn-prev" class="ctrl-btn" title="Anterior">⏮️</button>
+        <button type="button" id="btn-play" class="ctrl-btn play-circle" title="Reproducir / Pausa">▶</button>
+        <button type="button" id="btn-next" class="ctrl-btn" title="Siguiente">⏭️</button>
+        <button type="button" id="btn-repeat" class="ctrl-btn" title="Repetir">🔁</button>
+      </div>
+
+      <!-- Control de volumen -->
+      <div class="volume-panel">
+        <span class="vol-icon">🔊</span>
+        <input type="range" id="volume-slider" class="vol-slider" min="0" max="1" step="0.05" value="0.8">
+      </div>
+    </div>
+  </footer>
+
+  <!-- Modal de Login y Registro -->
+  <div id="modal-auth" class="modal-backdrop oculto">
+    <div class="modal-card">
+      <div class="modal-top">
+        <h3 id="modal-title">Iniciar Sesión / Registro</h3>
+        <button type="button" id="btn-close-modal" class="btn-close">×</button>
+      </div>
+      <p class="modal-desc">Ingresa tu usuario y clave. Si no existe, se registrará de inmediato en la base de datos local.</p>
+
+      <div class="auth-form-container">
+        <div id="auth-error-msg" class="auth-error oculto"></div>
+
+        <label for="auth-username">Usuario</label>
+        <input type="text" id="auth-username" placeholder="Nombre de usuario..." maxlength="20" autocomplete="off">
+
+        <label for="auth-password">Contraseña</label>
+        <input type="password" id="auth-password" placeholder="Tu contraseña..." autocomplete="off">
+
+        <div class="modal-buttons">
+          <button type="button" id="btn-submit-auth" class="btn-primary full-width">Ingresar a la cuenta</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./script.js"></script>
+</body>
+</html>
