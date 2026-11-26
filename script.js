@@ -423,7 +423,53 @@ authPassword.addEventListener("keydown", (e) => {
   if (e.key === "Enter") procesarAutenticacion();
 });
 
-function procesarAutenticacion() {
+// ==========================================
+// CONTRASEÑAS
+// Nunca se guardan tal cual: se guarda un hash PBKDF2-SHA256 con una sal
+// aleatoria por usuario (Web Crypto) y al entrar se compara el hash.
+// ==========================================
+const PBKDF2_ITERACIONES = 210000;
+
+function aBase64(bytes) {
+  return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+}
+
+function deBase64(texto) {
+  return Uint8Array.from(atob(texto), (c) => c.charCodeAt(0));
+}
+
+async function derivarHash(password, sal) {
+  const clave = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt: sal, iterations: PBKDF2_ITERACIONES },
+    clave,
+    256
+  );
+  return aBase64(bits);
+}
+
+async function crearCredencial(password) {
+  const sal = crypto.getRandomValues(new Uint8Array(16));
+  return { sal: aBase64(sal), hash: await derivarHash(password, sal) };
+}
+
+async function verificarPassword(password, credencial) {
+  if (!credencial || typeof credencial.sal !== "string" || typeof credencial.hash !== "string") {
+    return false;
+  }
+  try {
+    return (await derivarHash(password, deBase64(credencial.sal))) === credencial.hash;
+  } catch (error) {
+    return false; // sal dañada o alterada
+  }
+}
+
+let autenticando = false;
+
+async function procesarAutenticacion() {
+  if (autenticando) return;
   const user = authUsername.value.trim().toLowerCase();
   const pass = authPassword.value.trim();
 
@@ -435,23 +481,42 @@ function procesarAutenticacion() {
     mostrarErrorAuth("Debes escribir una contraseña.");
     return;
   }
+  if (!window.crypto || !crypto.subtle) {
+    mostrarErrorAuth("Tu navegador no permite guardar la contraseña de forma segura. Abre la página con https.");
+    return;
+  }
 
-  const db = obtenerBaseDatos();
+  autenticando = true;
+  try {
+    const db = obtenerBaseDatos();
 
-  // 1. Si el usuario ya existe en la BD -> Validar contraseña
-  if (db[user]) {
-    if (db[user].password !== pass) {
-      mostrarErrorAuth(`Contraseña incorrecta para @${user}.`);
-      return;
+    // 1. Si el usuario ya existe en la BD -> Validar contraseña
+    if (db[user]) {
+      if (typeof db[user].password === "string") {
+        // Cuenta creada antes de este cambio: se compara una última vez en
+        // texto plano y, si coincide, se reemplaza por el hash.
+        if (db[user].password !== pass) {
+          mostrarErrorAuth(`Contraseña incorrecta para @${user}.`);
+          return;
+        }
+        db[user].credencial = await crearCredencial(pass);
+        delete db[user].password;
+        guardarBaseDatos(db);
+      } else if (!(await verificarPassword(pass, db[user].credencial))) {
+        mostrarErrorAuth(`Contraseña incorrecta para @${user}.`);
+        return;
+      }
     }
-  } 
-  // 2. Si es usuario nuevo -> Registrar en la BD con su propia lista vacía
-  else {
-    db[user] = {
-      password: pass,
-      meGusta: [] // Colección privada de likes
-    };
-    guardarBaseDatos(db);
+    // 2. Si es usuario nuevo -> Registrar en la BD con su propia lista vacía
+    else {
+      db[user] = {
+        credencial: await crearCredencial(pass),
+        meGusta: [] // Colección privada de likes
+      };
+      guardarBaseDatos(db);
+    }
+  } finally {
+    autenticando = false;
   }
 
   // Establecer sesión activa
